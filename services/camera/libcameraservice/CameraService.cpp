@@ -4357,7 +4357,7 @@ status_t CameraService::BasicClient::startCameraOps() {
 
 #ifdef USES_MIUI_CAMERA
     // Configure miui camera mode
-    if (strcmp(String8(mClientPackageName).string(), "com.android.camera") == 0) {
+    if (String8(mClientPackageName.c_str()) == "com.android.camera") {
         SetProperty("sys.camera.miui.apk", "1");
         ALOGI("Enabling miui camera mode");
     } else {
