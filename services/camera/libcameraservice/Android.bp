@@ -128,7 +128,6 @@ cc_library {
 
     defaults: [
         "libcameraservice_deps",
-        "camera_package_name_defaults",
         "uses_miui_camera_defaults",
     ],
     cflags: [
@@ -138,6 +137,9 @@ cc_library {
         "-Wno-ignored-qualifiers",
     ] + select(soong_config_variable("libcameraservice", "ext_lib"), {
         any @ flag_val: ["-DTARGET_PROVIDES_CAMERA_PROVIDER_EXT_LIB"],
+        default: [],
+    }) + select(soong_config_variable("camera", "package_name"), {
+        any @ flag_val: ["-DCAMERA_PACKAGE_NAME=\"" + flag_val + "\""],
         default: [],
     }),
     whole_static_libs: select(soong_config_variable("libcameraservice", "ext_lib"), {
