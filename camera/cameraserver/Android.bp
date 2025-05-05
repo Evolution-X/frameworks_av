@@ -34,7 +34,6 @@ cc_binary {
 
     defaults: [
         "libcameraservice_deps",
-        "uses_miui_camera_defaults",
     ],
 
     header_libs: [
@@ -63,7 +62,10 @@ cc_binary {
         "-Wextra",
         "-Werror",
         "-Wno-unused-parameter",
-    ],
+     ] + select(soong_config_variable("camera", "uses_miui_camera"), {
+        any @ flag_val: ["-DUSES_MIUI_CAMERA=\"" + flag_val + "\""],
+        default: [],
+     }),
 
     init_rc: ["cameraserver.rc"],
 
