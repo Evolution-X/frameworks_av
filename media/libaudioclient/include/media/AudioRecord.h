@@ -698,6 +698,7 @@ private:
     // for client callback handler
 
     wp<IAudioRecordCallback> mCallback;
+    sp<IAudioRecordCallback> mLegacyCallbackWrapper;
 
     bool                    mInitialized = false;   // Protect against double set
     // for notification APIs
