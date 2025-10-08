@@ -817,7 +817,7 @@ struct Vp8ProfileLevelMapper : ProfileLevelMapperHelper {
         return true;
     }
     virtual bool simpleMap(int32_t, C2Config::level_t *to) {
-        *to = C2Config::LEVEL_UNUSED;
+        *to = C2Config::LEVEL_VERSION_VP8_0;
         return true;
     }
     virtual bool simpleMap(C2Config::profile_t, int32_t *to) {
@@ -825,7 +825,7 @@ struct Vp8ProfileLevelMapper : ProfileLevelMapperHelper {
         return true;
     }
     virtual bool simpleMap(int32_t, C2Config::profile_t *to) {
-        *to = C2Config::PROFILE_UNUSED;
+        *to = C2Config::PROFILE_VP8_0;
         return true;
     }
 };
