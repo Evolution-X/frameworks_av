@@ -197,7 +197,7 @@ status_t HidlCamera3Device::initialize(sp<CameraProviderManager> manager,
                     CLOGW("Trying fallback camera %s", fallbackId.c_str());
                     res = manager->getCameraCharacteristics(
                             fallbackId, /*overrideForPerfClass*/false,
-                            &mPhysicalDeviceInfoMap[fallbackId], /*overrideToPortrait*/true);
+                            &mPhysicalDeviceInfoMap[fallbackId], CameraCompatibilityInfo());
                 }
                 if (res != OK) {
                     SET_ERR_L("Could not retrieve camera %s characteristics: %s (%d)",
