@@ -17,6 +17,7 @@
 #define LOG_TAG "EffectsFactory"
 //#define LOG_NDEBUG 0
 
+#include <dlfcn.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -57,6 +58,23 @@ static uint32_t updateNumEffects();
 static int findSubEffect(const effect_uuid_t *uuid,
                lib_entry_t **lib,
                effect_descriptor_t **desc);
+static void loadViperEffect();
+
+static const effect_uuid_t kViperTypeUuid = {
+    0x41d3c987, 0xe6cf, 0x11e3, 0xa88a, {0x11, 0xab, 0xa5, 0xd5, 0xc5, 0x1b}
+};
+
+static const effect_uuid_t kViperImplUuid = {
+    0x90380da3, 0x8536, 0x4744, 0xa6a3, {0x57, 0x31, 0x97, 0x0e, 0x64, 0x0f}
+};
+
+static const char* kViperLibPaths[] = {
+    "/vendor/lib64/soundfx/libv4a_re.so",
+    "/vendor/lib/soundfx/libv4a_re.so",
+    "/system/lib64/soundfx/libv4a_re.so",
+    "/system/lib/soundfx/libv4a_re.so",
+    NULL
+};
 
 /////////////////////////////////////////////////
 //      Effect Control Interface functions
@@ -471,6 +489,8 @@ int init() {
         }
     }
 
+    loadViperEffect();
+
     updateNumEffects();
     gInitDone = 1;
     ALOGV("init() done");
@@ -617,5 +637,113 @@ int EffectDumpEffects(int fd) {
                 gConfigNbElemSkipped);
     }
     return ret;
+}
+
+void loadViperEffect() {
+    void *libHandle = NULL;
+    audio_effect_library_t *libDesc = NULL;
+    const char *libPath = NULL;
+
+    for (int i = 0; kViperLibPaths[i] != NULL; i++) {
+        if (access(kViperLibPaths[i], R_OK) == 0) {
+            libHandle = dlopen(kViperLibPaths[i], RTLD_NOW);
+            if (libHandle != NULL) {
+                libPath = kViperLibPaths[i];
+                ALOGI("loadViperEffect: loaded ViPER library from %s", libPath);
+                break;
+            }
+            ALOGW("loadViperEffect: failed to dlopen %s: %s", kViperLibPaths[i], dlerror());
+        }
+    }
+
+    if (libHandle == NULL) {
+        ALOGV("loadViperEffect: ViPER library not found, skipping");
+        return;
+    }
+
+    libDesc = (audio_effect_library_t *)dlsym(libHandle, AUDIO_EFFECT_LIBRARY_INFO_SYM_AS_STR);
+    if (libDesc == NULL) {
+        ALOGE("loadViperEffect: failed to find %s symbol: %s",
+              AUDIO_EFFECT_LIBRARY_INFO_SYM_AS_STR, dlerror());
+        dlclose(libHandle);
+        return;
+    }
+
+    if (libDesc->tag != AUDIO_EFFECT_LIBRARY_TAG) {
+        ALOGE("loadViperEffect: bad library tag %#08x, expected %#08x",
+              libDesc->tag, AUDIO_EFFECT_LIBRARY_TAG);
+        dlclose(libHandle);
+        return;
+    }
+
+    lib_entry_t *libEntry = (lib_entry_t *)malloc(sizeof(lib_entry_t));
+    if (libEntry == NULL) {
+        ALOGE("loadViperEffect: failed to allocate lib_entry_t");
+        dlclose(libHandle);
+        return;
+    }
+
+    libEntry->name = strdup("v4a_re");
+    libEntry->path = strdup(libPath);
+    libEntry->handle = libHandle;
+    libEntry->desc = libDesc;
+    libEntry->effects = NULL;
+    pthread_mutex_init(&libEntry->lock, NULL);
+
+    effect_descriptor_t *effectDesc = (effect_descriptor_t *)malloc(sizeof(effect_descriptor_t));
+    if (effectDesc == NULL) {
+        ALOGE("loadViperEffect: failed to allocate effect_descriptor_t");
+        free(libEntry->name);
+        free(libEntry->path);
+        dlclose(libHandle);
+        free(libEntry);
+        return;
+    }
+
+    int ret = libDesc->get_descriptor(&kViperImplUuid, effectDesc);
+    if (ret != 0) {
+        ALOGE("loadViperEffect: get_descriptor failed with %d", ret);
+        free(effectDesc);
+        free(libEntry->name);
+        free(libEntry->path);
+        dlclose(libHandle);
+        free(libEntry);
+        return;
+    }
+
+    list_elem_t *effectElem = (list_elem_t *)malloc(sizeof(list_elem_t));
+    if (effectElem == NULL) {
+        ALOGE("loadViperEffect: failed to allocate effect list element");
+        free(effectDesc);
+        free(libEntry->name);
+        free(libEntry->path);
+        dlclose(libHandle);
+        free(libEntry);
+        return;
+    }
+    effectElem->object = effectDesc;
+    effectElem->next = libEntry->effects;
+    libEntry->effects = effectElem;
+
+    list_elem_t *libElem = (list_elem_t *)malloc(sizeof(list_elem_t));
+    if (libElem == NULL) {
+        ALOGE("loadViperEffect: failed to allocate library list element");
+        free(effectElem);
+        free(effectDesc);
+        free(libEntry->name);
+        free(libEntry->path);
+        dlclose(libHandle);
+        free(libEntry);
+        return;
+    }
+
+    pthread_mutex_lock(&gLibLock);
+    libElem->object = libEntry;
+    libElem->next = gLibraryList;
+    gLibraryList = libElem;
+    pthread_mutex_unlock(&gLibLock);
+
+    ALOGI("loadViperEffect: successfully registered ViPER4Android effect: %s",
+          effectDesc->name);
 }
 
