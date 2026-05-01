@@ -325,6 +325,21 @@ bool getGenerationNumberAndUsage(const sp<HGraphicBufferProducer> &producer,
 class C2BufferQueueBlockPool::Impl
         : public std::enable_shared_from_this<C2BufferQueueBlockPool::Impl> {
 private:
+    c2_status_t handleProducerTransportFailure(
+            const char *operation,
+            const Return<void> &transResult) {
+        static constexpr int64_t kTransportFailureLogIntervalUs = 5000000;
+
+        const int64_t now = getTimestampNow();
+        if (mLastIgbpTransactionFailureLogTs == 0
+                || now >= mLastIgbpTransactionFailureLogTs + kTransportFailureLogIntervalUs) {
+            ALOGW("%s transaction failed: %s",
+                  operation, transResult.description().c_str());
+            mLastIgbpTransactionFailureLogTs = now;
+        }
+        return C2_BLOCKING;
+    }
+
     c2_status_t dequeueBuffer(
             uint32_t width,
             uint32_t height,
@@ -353,16 +368,18 @@ private:
                                 hOutput.bufferNeedsReallocation;
                     }
                 });
-        if (!transResult.isOk() || status != android::OK) {
-            if (transResult.isOk()) {
-                ++mDqFailure;
-                if (status == android::INVALID_OPERATION ||
-                    status == android::TIMED_OUT ||
-                    status == android::WOULD_BLOCK) {
-                    // Dequeue buffer is blocked temporarily. Retrying is
-                    // required.
-                    return C2_BLOCKING;
-                }
+        if (!transResult.isOk()) {
+            ++mDqFailure;
+            return handleProducerTransportFailure("dequeueBuffer", transResult);
+        }
+        if (status != android::OK) {
+            ++mDqFailure;
+            if (status == android::INVALID_OPERATION ||
+                status == android::TIMED_OUT ||
+                status == android::WOULD_BLOCK) {
+                // Dequeue buffer is blocked temporarily. Retrying is
+                // required.
+                return C2_BLOCKING;
             }
             ALOGD("cannot dequeue buffer %d", status);
             return C2_BAD_VALUE;
@@ -601,7 +618,8 @@ public:
     Impl(const std::shared_ptr<C2Allocator> &allocator)
         : mInit(C2_OK), mProducerId(0), mGeneration(0),
           mConsumerUsage(0), mDqFailure(0), mLastDqTs(0),
-          mLastDqLogTs(0), mAllocator(allocator),
+          mLastDqLogTs(0), mLastIgbpTransactionFailureLogTs(0),
+          mAllocator(allocator),
           mDeferDeallocationAfterStop(false),
           mHavingDeallocationDeferred(false), mIgbpValidityToken(std::make_shared<int>(0)) {
     }
@@ -860,6 +878,7 @@ private:
     size_t mDqFailure;
     int64_t mLastDqTs;
     int64_t mLastDqLogTs;
+    int64_t mLastIgbpTransactionFailureLogTs;
 
     const std::shared_ptr<C2Allocator> mAllocator;
 
