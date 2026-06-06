@@ -247,6 +247,7 @@ std::shared_ptr<MultiAccessUnitInterface> ComponentStore::tryCreateMultiAccessUn
                 multiAccessUnitIntf = std::make_shared<MultiAccessUnitInterface>(
                         c2interface,
                         multiAccessReflector);
+                std::lock_guard<std::mutex> lock(mStructDescriptorsMutex);
                 mParamReflectors.push_back(multiAccessReflector);
             }
         }
