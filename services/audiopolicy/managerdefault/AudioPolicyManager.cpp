@@ -331,12 +331,6 @@ status_t AudioPolicyManager::setDeviceConnectionStateInt(const sp<DeviceDescript
             // Send Disconnect to HALs
             broadcastDeviceConnectionState(device, media::DeviceConnectedState::DISCONNECTED);
 
-            // Reset active device codec
-            device->setEncodedFormat(AUDIO_FORMAT_DEFAULT);
-
-            // remove device from mReportedFormatsMap cache
-            mReportedFormatsMap.erase(device);
-
             // remove preferred mixer configurations
             mPreferredMixerAttrInfos.erase(device->getId());
 
@@ -443,6 +437,9 @@ status_t AudioPolicyManager::setDeviceConnectionStateInt(const sp<DeviceDescript
         }
 
         if (state == AUDIO_POLICY_DEVICE_STATE_UNAVAILABLE) {
+            device->setEncodedFormat(AUDIO_FORMAT_DEFAULT);
+            mReportedFormatsMap.erase(device);
+
             cleanUpForDevice(device);
         }
 
