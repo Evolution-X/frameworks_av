@@ -1034,14 +1034,6 @@ public:
     }
 
     bool needsReleaseNotify() override { return true; }
-
-#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(BQ_CONSUMER_ATTACH_CALLBACK)
-    void onBufferAttached() override {
-        notifyBufferAttached();
-    }
-
-    bool needsAttachNotify() override { return true; }
-#endif
 };
 
 class BufferCallback : public CodecBase::BufferCallback {
