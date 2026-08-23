@@ -37,3 +37,9 @@ __attribute__((weak)) int32_t getTorchStrengthLevelExt() {
 __attribute__((weak)) void setTorchStrengthLevelExt(__unused int32_t torchStrength, __unused bool enabled) {
     // Nothing
 }
+
+__attribute__((weak)) std::vector<std::pair<std::string, uint8_t>>
+getCaptureRequestU8OverridesExt(__unused const std::string& cameraId,
+        __unused const std::string& packageName) {
+    return {};
+}
