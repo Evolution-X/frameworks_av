@@ -15,9 +15,14 @@
  */
 
 #include <stdint.h>
+#include <string>
+#include <utility>
+#include <vector>
 
 extern bool supportsTorchStrengthControlExt();
 extern int32_t getTorchDefaultStrengthLevelExt();
 extern int32_t getTorchMaxStrengthLevelExt();
 extern int32_t getTorchStrengthLevelExt();
 extern void setTorchStrengthLevelExt(int32_t torchStrength, bool enabled);
+extern std::vector<std::pair<std::string, uint8_t>> getCaptureRequestU8OverridesExt(
+        const std::string& cameraId, const std::string& packageName);

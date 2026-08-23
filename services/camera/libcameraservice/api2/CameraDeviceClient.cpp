@@ -30,6 +30,7 @@
 #include <camera/CameraUtils.h>
 #include <camera/StringUtils.h>
 #include <camera/camera2/CaptureRequest.h>
+#include <camera/VendorTagDescriptor.h>
 #include <com_android_internal_camera_flags.h>
 #include <cutils/properties.h>
 #include <gui/Surface.h>
@@ -38,6 +39,7 @@
 #include <utils/Trace.h>
 
 #include "common/CameraDeviceBase.h"
+#include "common/CameraProviderExtension.h"
 #include "device3/Camera3Device.h"
 #include "device3/Camera3OutputStream.h"
 #include "api2/CameraDeviceClient.h"
@@ -677,6 +679,34 @@ binder::Status CameraDeviceClient::submitRequestList(
                 }
             } else {
                 physicalSettingsList.push_back({resolvedId, it.settings});
+            }
+        }
+
+        const auto requestOverrides =
+                getCaptureRequestU8OverridesExt(mCameraIdStr, getPackageName());
+        if (!requestOverrides.empty()) {
+            sp<VendorTagDescriptor> vendorTags;
+            sp<VendorTagDescriptorCache> vendorTagCache =
+                    VendorTagDescriptorCache::getGlobalVendorTagCache();
+            if (vendorTagCache != nullptr) {
+                vendorTagCache->getVendorTagDescriptor(mDevice->getVendorTagId(), &vendorTags);
+            }
+
+            for (const auto& [tagName, value] : requestOverrides) {
+                uint32_t tag;
+                status_t overrideStatus =
+                        CameraMetadata::getTagFromName(tagName.c_str(), vendorTags.get(), &tag);
+                if (overrideStatus != OK) {
+                    ALOGW("%s: Camera %s: Could not resolve request override %s",
+                            __FUNCTION__, mCameraIdStr.c_str(), tagName.c_str());
+                    continue;
+                }
+                overrideStatus = physicalSettingsList.begin()->metadata.update(tag, &value, 1);
+                if (overrideStatus != OK) {
+                    ALOGW("%s: Camera %s: Could not apply request override %s: %s (%d)",
+                            __FUNCTION__, mCameraIdStr.c_str(), tagName.c_str(),
+                            strerror(-overrideStatus), overrideStatus);
+                }
             }
         }
 
