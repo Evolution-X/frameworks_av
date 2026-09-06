@@ -2120,8 +2120,9 @@ void AudioFlinger::registerClient(const sp<media::IAudioFlingerClient>& client)
             ALOGW_IF(status != NO_ERROR, "%s: linkToDeath returned %d",
                     __func__, status);
             status = binder->addFrozenStateChangeCallback(notificationClient);
-            ALOGW_IF(status != NO_ERROR, "%s: addFrozenStateChangeCallback returned %d",
-                    __func__, status);
+            // Frozen-state notifications are optional on older kernels.
+            ALOGW_IF(status != NO_ERROR && status != INVALID_OPERATION,
+                    "%s: addFrozenStateChangeCallback returned %d", __func__, status);
         }
     }
 
