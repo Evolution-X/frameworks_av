@@ -90,8 +90,9 @@ aaudio_result_t AAudioClientTracker::registerClient(pid_t pid,
         ALOGW_IF(status != NO_ERROR, "registerClient() linkToDeath = %d\n", status);
         if (com::android::media::audioserver::mmap_freezer_awareness()) {
             status = binder->addFrozenStateChangeCallback(notificationClient);
-            ALOGW_IF(status != NO_ERROR, "registerClient() addFrozenStateChangeCallback = %d\n",
-                     status);
+            // Frozen-state notifications are optional on older kernels.
+            ALOGW_IF(status != NO_ERROR && status != INVALID_OPERATION,
+                     "registerClient() addFrozenStateChangeCallback = %d\n", status);
         }
         return AAudioConvert_androidToAAudioResult(status);
     } else {
@@ -105,7 +106,7 @@ aaudio_result_t AAudioClientTracker::registerClient(pid_t pid,
             } else {
                 if (com::android::media::audioserver::mmap_freezer_awareness()) {
                     status = binder->addFrozenStateChangeCallback(notificationClient);
-                    if (status != NO_ERROR) {
+                    if (status != NO_ERROR && status != INVALID_OPERATION) {
                         ALOGE("registerClient() addFrozenStateChangeCallback status = %d\n",
                               status);
                     }
