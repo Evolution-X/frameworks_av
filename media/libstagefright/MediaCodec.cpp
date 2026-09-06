@@ -7717,6 +7717,11 @@ status_t MediaCodec::connectToSurface(const sp<Surface> &surface, uint32_t *gene
                     new OnBufferReleasedListener(*generation, mBufferChannel);
             err = surfaceConnectWithListener(
                     surface, listener, "connectToSurface(reconnect-with-listener)");
+            if (err == OK) {
+                // Disconnect clears Surface's local generation number. Restore it after
+                // reconnect so attached OMX buffers match the producer's generation.
+                err = surface->setGenerationNumber(*generation);
+            }
         }
 
         if (err != OK) {
