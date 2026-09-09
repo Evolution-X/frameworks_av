@@ -304,6 +304,17 @@ status_t VendorTagDescriptor::lookupTag(const String8& name, const String8& sect
     }
 
     ssize_t nameIndex = mReverseMapping[index]->indexOfKey(name);
+    // Older Xiaomi HALs expose one role as cameraId. Newer clients read the
+    // same int32 metadata as a role array, which can contain a single entry.
+    // Prefer the actual array tag when the provider implements it.
+    if (nameIndex < 0 && section == String8("com.xiaomi.cameraid.role") &&
+            name == String8("cameraIds")) {
+        const ssize_t legacyIndex = mReverseMapping[index]->indexOfKey(String8("cameraId"));
+        if (legacyIndex >= 0 &&
+                getTagType(mReverseMapping[index]->valueAt(legacyIndex)) == TYPE_INT32) {
+            nameIndex = legacyIndex;
+        }
+    }
     if (nameIndex < 0) {
         ALOGE("%s: Tag name '%s' does not exist.", __FUNCTION__, name.c_str());
         return BAD_VALUE;
