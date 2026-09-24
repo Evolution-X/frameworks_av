@@ -3164,8 +3164,14 @@ static_assert(offsetof(Ac4TableParams, bufferA) == 0x1c);
 static_assert(offsetof(Ac4TableParams, bufferB) == 0x11c);
 static_assert(offsetof(Ac4TableParams, bufferC) == 0x170);
 static_assert(sizeof(Ac4TableParams) == 452);
+// This decoder assigns table submission to 0x6f400009, not the shared
+// OMX_IndexParamAudioAndroidAc4Tbl value. Keep the vendor index private:
+// 0x6f400009 is OMX_IndexConfigAudioPresentation in the shared headers.
+constexpr OMX_INDEXTYPE kAc4TableIndex = static_cast<OMX_INDEXTYPE>(0x6f400009);
 #else
 using Ac4TableParams = OMX_AUDIO_PARAM_ANDROID_AC4TBL;
+constexpr OMX_INDEXTYPE kAc4TableIndex =
+        static_cast<OMX_INDEXTYPE>(OMX_IndexParamAudioAndroidAc4Tbl);
 #endif
 static_assert(sizeof(Ac4TableParams::bufferB) >= TABLE_B_C_U8_SZ);
 static_assert(sizeof(Ac4TableParams::bufferC) >= TABLE_B_C_U8_SZ);
@@ -3255,7 +3261,7 @@ status_t ACodec::setupAC4Codec(
     memcpy (tbl.bufferC, C_OBJ->getBuffer(), TABLE_B_C_U8_SZ);
 
     err = mOMXNode->setParameter(
-            (OMX_INDEXTYPE)OMX_IndexParamAudioAndroidAc4Tbl, &tbl, sizeof(tbl));
+            kAc4TableIndex, &tbl, sizeof(tbl));
 
     delete A_OBJ;
     delete B_OBJ;
