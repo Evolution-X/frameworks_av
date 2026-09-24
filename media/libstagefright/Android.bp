@@ -232,10 +232,22 @@ filegroup {
     path: "aidl",
 }
 
+// The OMX AC-4 table layout is a decoder ABI, not a DAP effect capability.
+// Keep the existing 20-entry tables unless the product selects the newer pair.
+cc_defaults {
+    name: "dolby_ac4_table_defaults",
+    cflags: select(soong_config_variable("media", "dolby_ac4_21_entry_tables"), {
+        true: ["-DDOLBY_AC4_21_ENTRY_TABLES"],
+        false: [],
+        default: [],
+    }),
+}
+
 cc_library {
     name: "libstagefright",
 
     defaults: [
+        "dolby_ac4_table_defaults",
         "libaudioclient_client",
     ],
 
