@@ -67,6 +67,7 @@
 #include "include/SharedMemoryBuffer.h"
 #include <media/stagefright/omx/OMXUtils.h>
 #include "TableXInit.h"
+#include <cstddef>
 
 #include <server_configurable_flags/get_flags.h>
 
@@ -3145,6 +3146,30 @@ status_t ACodec::setupEAC3Codec(
 }
 
 
+#ifdef DOLBY_AC4_21_ENTRY_TABLES
+// Private layout for the opted-in decoder. Do not change the shared OMX ABI
+// used by products whose decoder still expects 80-byte B/C buffers.
+struct Ac4TableParams {
+    OMX_U32 nSize;
+    OMX_U8 seedA, seedB, seedC;
+    OMX_U8 idA, idB, idC;
+    OMX_U8 maskA, maskB, maskC;
+    OMX_U32 sizeA, sizeB, sizeC;
+    OMX_U8 bufferA[LUT_BUFFER_SIZE];
+    OMX_U8 bufferB[TABLE_B_C_U8_SZ];
+    OMX_U8 bufferC[TABLE_B_C_U8_SZ];
+};
+// Verified against the stock decoder's internalSetParameter table handler.
+static_assert(offsetof(Ac4TableParams, bufferA) == 0x1c);
+static_assert(offsetof(Ac4TableParams, bufferB) == 0x11c);
+static_assert(offsetof(Ac4TableParams, bufferC) == 0x170);
+static_assert(sizeof(Ac4TableParams) == 452);
+#else
+using Ac4TableParams = OMX_AUDIO_PARAM_ANDROID_AC4TBL;
+#endif
+static_assert(sizeof(Ac4TableParams::bufferB) >= TABLE_B_C_U8_SZ);
+static_assert(sizeof(Ac4TableParams::bufferC) >= TABLE_B_C_U8_SZ);
+
 template<class T>
 static void InitTblOMXParams(T *params) {
     params->nSize = sizeof(T);
@@ -3193,7 +3218,7 @@ status_t ACodec::setupAC4Codec(
     def.nChannels = numChannels;
     def.nSampleRate = sampleRate;
     
-    OMX_AUDIO_PARAM_ANDROID_AC4TBL tbl;
+    Ac4TableParams tbl{};
     InitTblOMXParams(&tbl);
 
     TableXInit *A_OBJ = new TableXInit(AC4_TABLE_SEC_FRS_CODE,
@@ -3229,12 +3254,19 @@ status_t ACodec::setupAC4Codec(
     memcpy (tbl.bufferB, B_OBJ->getBuffer(), TABLE_B_C_U8_SZ);
     memcpy (tbl.bufferC, C_OBJ->getBuffer(), TABLE_B_C_U8_SZ);
 
-    mOMXNode->setParameter(
+    err = mOMXNode->setParameter(
             (OMX_INDEXTYPE)OMX_IndexParamAudioAndroidAc4Tbl, &tbl, sizeof(tbl));
 
     delete A_OBJ;
     delete B_OBJ;
     delete C_OBJ;
+
+#ifdef DOLBY_AC4_21_ENTRY_TABLES
+    if (err != OK) {
+        ALOGE("AC-4 table initialization failed: %d", err);
+        return err;
+    }
+#endif
 
     return mOMXNode->setParameter(
             (OMX_INDEXTYPE)OMX_IndexParamAudioAndroidAc4, &def, sizeof(def));
