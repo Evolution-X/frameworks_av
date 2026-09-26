@@ -155,6 +155,18 @@ status_t MediaSync::setSurface(const sp<MediaSurfaceType> &output) {
             returnBufferToInput_l(mBuffersSentToOutput.valueAt(0), Fence::NO_FENCE);
             mBuffersSentToOutput.removeItemsAt(0);
         }
+
+        if (output == NULL) {
+            // Input can remain connected after the output surface is removed.
+            // Return any detached frames immediately instead of leaving them
+            // queued for a drain that no longer has a render target.
+            while (!mBufferItems.empty()) {
+                BufferItem *bufferItem = &*mBufferItems.begin();
+                returnBufferToInput_l(bufferItem->mGraphicBuffer, bufferItem->mFence);
+                mBufferItems.erase(mBufferItems.begin());
+            }
+            mNextBufferItemMediaUs = -1;
+        }
     }
 
     mOutput = output;
@@ -708,6 +720,13 @@ void MediaSync::onFrameAvailableFromInput() {
     // TRICKY: do it here after it is detached so that we don't have to cache mGraphicBuffer.
     if (mReturnPendingInputFrame) {
         mReturnPendingInputFrame = false;
+        returnBufferToInput_l(bufferItem.mGraphicBuffer, bufferItem.mFence);
+        return;
+    }
+
+    if (mOutput == NULL) {
+        // setSurface(nullptr) is valid unless VSYNC is the sync source. Keep
+        // the input queue flowing while there is no render target.
         returnBufferToInput_l(bufferItem.mGraphicBuffer, bufferItem.mFence);
         return;
     }

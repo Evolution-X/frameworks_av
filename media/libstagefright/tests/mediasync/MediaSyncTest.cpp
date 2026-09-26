@@ -19,6 +19,7 @@
 
 #include <gui/IGraphicBufferProducer.h>
 #include <gui/IProducerListener.h>
+#include <gui/Surface.h>
 #include <gui/mock/GraphicBufferProducer.h>
 #include <media/stagefright/MediaSync.h>
 #include <system/window.h>
@@ -60,6 +61,35 @@ class MediaSyncTest : public ::testing::Test {
     sp<MediaSync> mMediaSync = MediaSync::create();
     sp<IProducerListener> mCapturedListener;
 };
+
+TEST_F(MediaSyncTest, RemovedOutputReturnsNewInputBuffers) {
+    setSurfaceAndCaptureListener();
+
+    sp<IGraphicBufferProducer> inputProducer;
+    ASSERT_EQ(OK, mMediaSync->createInputSurface(&inputProducer));
+
+    AudioPlaybackRate rate = AUDIO_PLAYBACK_RATE_DEFAULT;
+    rate.mSpeed = 1.0f;
+    ASSERT_EQ(OK, mMediaSync->setPlaybackSettings(rate));
+
+    ASSERT_EQ(OK, mMediaSync->setSurface(nullptr));
+
+    sp<Surface> inputSurface = sp<Surface>::make(inputProducer);
+    ASSERT_EQ(OK, inputSurface->connect(NATIVE_WINDOW_API_MEDIA));
+    ASSERT_EQ(OK, inputSurface->setBuffersDimensions(16, 16));
+    ASSERT_EQ(OK, inputSurface->setBuffersFormat(PIXEL_FORMAT_RGBA_8888));
+
+    sp<GraphicBuffer> buffer;
+    sp<Fence> fence;
+    ASSERT_EQ(OK, inputSurface->dequeueBuffer(&buffer, &fence));
+    ASSERT_EQ(OK, inputSurface->queueBuffer(buffer, fence));
+
+    // MediaSync must immediately return the frame to the input queue while
+    // there is no output surface instead of trying to render through nullptr.
+    ASSERT_EQ(OK, inputSurface->dequeueBuffer(&buffer, &fence));
+    ASSERT_EQ(OK, inputSurface->cancelBuffer(buffer, fence));
+    ASSERT_EQ(OK, inputSurface->disconnect(NATIVE_WINDOW_API_MEDIA));
+}
 
 // Verify that onBufferReleasedByOutput handles DEAD_OBJECT from
 // detachNextBuffer without crashing.
