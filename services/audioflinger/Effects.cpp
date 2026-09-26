@@ -2986,6 +2986,11 @@ static const effect_uuid_t SL_V4A_RE_ = // 90380da3-8536-4744-a6a3-5731970e640f
 { 0x90380da3, 0x8536, 0x4744, 0xa6a3, {0x57, 0x31, 0x97, 0x0e, 0x64, 0x0f} };
 const effect_uuid_t * const SL_V4A_RE = &SL_V4A_RE_;
 
+// AxionFx
+static const effect_uuid_t SL_AXFX_ = // f35cb927-a887-4f3d-847f-770634486d53
+{ 0xf35cb927, 0xa887, 0x4f3d, 0x847f, {0x77, 0x06, 0x34, 0x48, 0x6d, 0x53} };
+const effect_uuid_t * const SL_AXFX = &SL_AXFX_;
+
 /* static */
 bool EffectChain::isEffectEligibleForBtNrecSuspend_l(const effect_uuid_t* type) {
     // Only NS and AEC are suspended when BtNRec is off
@@ -3008,6 +3013,7 @@ bool EffectChain::isEffectEligibleForSuspend(const effect_descriptor_t& desc)
           (memcmp(&desc.type, SL_IID_DAP, sizeof(effect_uuid_t)) == 0) ||
           (memcmp(&desc.type, SL_IID_DAP_SW, sizeof(effect_uuid_t)) == 0) ||
           (memcmp(&desc.type, SL_V4A_RE, sizeof(effect_uuid_t)) == 0) ||
+          (memcmp(&desc.type, SL_AXFX, sizeof(effect_uuid_t)) == 0) ||
           (memcmp(&desc.type, SL_IID_DYNAMICSPROCESSING, sizeof(effect_uuid_t)) == 0)))) {
         return false;
     }
