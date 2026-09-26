@@ -886,7 +886,9 @@ void MediaSync::onAbandoned_l(bool isInput) {
     ALOGE("the %s has abandoned me", (isInput ? "input" : "output"));
     if (!mIsAbandoned) {
         if (isInput) {
-            mOutput->disconnect(NATIVE_WINDOW_API_MEDIA);
+            if (mOutput != nullptr) {
+                mOutput->disconnect(NATIVE_WINDOW_API_MEDIA);
+            }
         } else if (mInput != nullptr) {
             // mInput is only assigned in createInputSurface(); guard against
             // the case where the process hosting the output Surface's
