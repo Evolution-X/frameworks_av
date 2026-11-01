@@ -35,6 +35,11 @@ namespace android {
 static const int64_t kAcquireBufferTimeoutNs = 100000000LL;
 static constexpr float kDefaultMaxMasteringLuminance = 1000.0;
 static constexpr float kDefaultMaxContentLuminance = 1000.0;
+// A mastering display peak luminance below this is not physically meaningful.
+// Some decoders report a small bogus value (e.g. 0.1 cd/m^2) when the MDCV
+// field is absent; using it as the tone-map input peak scales the frame by
+// display-max / 0.1 and clips HDR thumbnails to white.
+static constexpr float kMinValidMasteringLuminance = 1.0f;
 
 ui::Dataspace translateDataspace(ui::Dataspace dataspace) {
     ui::Dataspace updatedDataspace = dataspace;
@@ -90,9 +95,13 @@ void FrameCaptureLayer::BufferLayer::getLayerSettings(
     layerSettings->source.buffer.usePremultipliedAlpha = false;
     bool hasSmpte2086 = mBufferItem.mHdrMetadata.validTypes & HdrMetadata::SMPTE2086;
     bool hasCta861_3 = mBufferItem.mHdrMetadata.validTypes & HdrMetadata::CTA861_3;
-    layerSettings->source.buffer.maxMasteringLuminance = hasSmpte2086
+    float maxMasteringLuminance = hasSmpte2086
             ? mBufferItem.mHdrMetadata.smpte2086.maxLuminance
                     : kDefaultMaxMasteringLuminance;
+    if (maxMasteringLuminance < kMinValidMasteringLuminance) {
+        maxMasteringLuminance = kDefaultMaxMasteringLuminance;
+    }
+    layerSettings->source.buffer.maxMasteringLuminance = maxMasteringLuminance;
     layerSettings->source.buffer.maxContentLuminance = hasCta861_3
             ? mBufferItem.mHdrMetadata.cta8613.maxContentLightLevel
                     : kDefaultMaxContentLuminance;
