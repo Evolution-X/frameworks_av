@@ -16,6 +16,7 @@
 
 #define LOG_TAG "C2Store"
 // #define LOG_NDEBUG 0
+#include <atomic>
 #include <utils/Log.h>
 
 #include <C2AllocatorBlob.h>
@@ -530,7 +531,12 @@ C2PlatformAllocatorStore::id_t GetPreferredLinearAllocatorId(int poolMask) {
 
 namespace {
 
+static std::atomic<bool> sForceHidlBufferPool{false};
+
 static C2PooledBlockPool::BufferPoolVer GetBufferPoolVer() {
+    if (sForceHidlBufferPool) {
+        return C2PooledBlockPool::VER_HIDL;
+    }
     static C2PooledBlockPool::BufferPoolVer sVer =
         IsCodec2AidlHalSelected() ? C2PooledBlockPool::VER_AIDL2 : C2PooledBlockPool::VER_HIDL;
     return sVer;
@@ -739,6 +745,10 @@ static std::unique_ptr<_C2BlockPoolCache> sBlockPoolCache =
     std::make_unique<_C2BlockPoolCache>();
 
 } // anynymous namespace
+
+void ForceCodec2HidlBufferPool() {
+    sForceHidlBufferPool = true;
+}
 
 c2_status_t GetCodec2BlockPool(
         C2BlockPool::local_id_t id, std::shared_ptr<const C2Component> component,

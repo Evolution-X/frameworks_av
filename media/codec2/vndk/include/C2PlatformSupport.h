@@ -115,6 +115,13 @@ public:
 };
 
 /**
+ * Makes the pooled block pools created by this process use the HIDL bufferpool,
+ * even if the AIDL Codec2 HAL is selected. For a process that serves a store over
+ * HIDL only. Call before any block pool is created.
+ */
+void ForceCodec2HidlBufferPool();
+
+/**
  * Retrieves a block pool for a component.
  *
  * \param id        the local ID of the block pool
